@@ -8,9 +8,9 @@ using Compat
 
 export npzread, npzwrite
 
-const NPYMagic = Uint8[0x93, 'N', 'U', 'M', 'P', 'Y']
-const ZIPMagic = Uint8['P', 'K', 3, 4]
-const Version = Uint8[1, 0]
+const NPYMagic = UInt8[0x93, 'N', 'U', 'M', 'P', 'Y']
+const ZIPMagic = UInt8['P', 'K', 3, 4]
+const Version = UInt8[1, 0]
 
 const TypeMaps = [
 	("b1", Bool),
@@ -18,10 +18,10 @@ const TypeMaps = [
 	("i2", Int16),
 	("i4", Int32),
 	("i8", Int64),
-	("u1", Uint8),
-	("u2", Uint16),
-	("u4", Uint32),
-	("u8", Uint64),
+	("u1", UInt8),
+	("u2", UInt16),
+	("u4", UInt32),
+	("u8", UInt64),
 	("f4", Float32),
 	("f8", Float64),
 	("c8", Complex64),
@@ -39,9 +39,9 @@ Julia2Numpy = [t => s for (s, t) in TypeMaps]
 # loaded.
 __init__() = Base.rehash!(Julia2Numpy)
 
-readle(ios::IO, ::Type{Uint16}) = htol(read(ios, Uint16))
+readle(ios::IO, ::Type{UInt16}) = htol(read(ios, UInt16))
 
-function writele(ios::IO, x::Vector{Uint8})
+function writele(ios::IO, x::Vector{UInt8})
 	n = write(ios, x)
 	if n != length(x)
 		error("short write")
@@ -49,8 +49,8 @@ function writele(ios::IO, x::Vector{Uint8})
 	n
 end
 
-writele(ios::IO, x::ASCIIString) = writele(ios, convert(Vector{Uint8}, x))
-writele(ios::IO, x::Uint16) = writele(ios, reinterpret(Uint8, [htol(x)]))
+writele(ios::IO, x::ASCIIString) = writele(ios, convert(Vector{UInt8}, x))
+writele(ios::IO, x::UInt16) = writele(ios, reinterpret(UInt8, [htol(x)]))
 
 function parsechar(s::ASCIIString, c::Char)
 	if s[1] != c
@@ -122,7 +122,7 @@ function parsedtype(s::ASCIIString)
 end
 
 type Header
-	descr :: (Function, DataType)
+	descr :: @compat Tuple{Function, DataType}
 	fortran_order :: Bool
 	shape :: Vector{Int}
 end
@@ -162,16 +162,16 @@ function parseheader(s::ASCIIString)
 end
 
 function npzreadarray(f::IO)
-	b = read(f, Uint8, length(NPYMagic))
+	b = read(f, UInt8, length(NPYMagic))
 	if b != NPYMagic
 		error("not a numpy array file")
 	end
-	b = read(f, Uint8, length(Version))
+	b = read(f, UInt8, length(Version))
 	if b != Version
 		error("unsupported NPZ version")
 	end
-	hdrlen = readle(f, Uint16)
-	hdr = ascii(read(f, Uint8, hdrlen))
+	hdrlen = readle(f, UInt16)
+	hdr = ascii(read(f, UInt8, hdrlen))
 	hdr = parseheader(strip(hdr))
 	
 	toh, typ = hdr.descr
@@ -189,7 +189,7 @@ end
 function npzread(filename::String)
 	# Detect if the file is a numpy npy array file or a npz/zip file.
 	f = open(filename)
-	b = read(f, Uint8, max(length(NPYMagic), length(ZIPMagic)))
+	b = read(f, UInt8, max(length(NPYMagic), length(ZIPMagic)))
 	if startswith(b, ZIPMagic)
 		close(f)
 		f = ZipFile.Reader(filename)
@@ -218,7 +218,7 @@ function npzread(dir::ZipFile.Reader)
 	vars
 end
 
-function npzwritearray(f::IO, x::Array{Uint8}, T::DataType, shape::Vector{Int})
+function npzwritearray(f::IO, x::Array{UInt8}, T::DataType, shape::Vector{Int})
 	if !haskey(Julia2Numpy, T)
 		error("unsupported type $T")
 	end
@@ -244,11 +244,11 @@ function npzwritearray(f::IO, x::Array{Uint8}, T::DataType, shape::Vector{Int})
 end
 
 function npzwritearray{T}(f::IO, x::Array{T})
-	npzwritearray(f, reinterpret(Uint8, x[:]), T, [i for i in size(x)])
+	npzwritearray(f, reinterpret(UInt8, x[:]), T, [i for i in size(x)])
 end
 
 function npzwritearray{T<:Number}(f::IO, x::T)
-	npzwritearray(f, reinterpret(Uint8, [x]), T, Int[])
+	npzwritearray(f, reinterpret(UInt8, [x]), T, Int[])
 end
 
 function npzwrite(filename::String, x)
